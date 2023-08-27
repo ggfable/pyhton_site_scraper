@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query
+from fastapi.logger import logger
 from fastapi.responses import JSONResponse
 from scraper import get_job_data
 import time
@@ -7,6 +8,7 @@ import time
 app = FastAPI(title="ggfalbe API",
               description="data scraping",
               version="0.0.1",)
+
 
 
 @app.exception_handler(Exception)
@@ -27,6 +29,7 @@ async def add_process_time_header(request, call_next):
 
 @app.get("/")
 async def index():
+    logger.debug("Handling index request")
     return JSONResponse(content={"message": "Api is running"})
 
 

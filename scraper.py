@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import  NoSuchElementException
+from selenium.common.exceptions import  NoSuchElementException, ElementNotInteractableException, WebDriverException
 from fastapi.responses import JSONResponse
 
 
@@ -39,8 +39,16 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
         }
         
         await asyncio.sleep(1)
-     
-        driver.get(f'https://{country}.jooble.org/SearchResult?date=2&p=5&ukw={job}')
+        
+        try:
+            driver.get(f'https://{country}.jooble.org/SearchResult?date=2&p=5&ukw={job}')
+        except WebDriverException as e:
+            if driver:
+                driver.quit()
+            if "ERR_NAME_NOT_RESOLVED" in str(e):
+                return JSONResponse(content={"error": "ERR_NAME_NOT_RESOLVED", "message": str(e)}) 
+            else:
+                return JSONResponse(content={"error": "Failed to load the page.", "message": str(e)})
         
         await asyncio.sleep(1)
         
@@ -60,6 +68,8 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
                 action.click(salary_period).perform()
             except NoSuchElementException as e:
                 pass
+            except ElementNotInteractableException as e:
+                pass
             
             await asyncio.sleep(0.5)
             
@@ -69,6 +79,8 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
                 action.move_to_element(salary_min).perform()
                 action.click(salary_min).perform()
             except NoSuchElementException as e:
+                pass
+            except ElementNotInteractableException as e:
                 pass
         
         final_url = driver.current_url
@@ -83,6 +95,8 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
             articles = driver.find_elements(By.XPATH, '//article[@data-test-name="_jobCard"]')
         except NoSuchElementException as e:
             return JSONResponse(content={"error": "Element is not found.", "message": str(e.msg.strip())})
+        except ElementNotInteractableException as e:
+            return JSONResponse(content={"error": "Element is not interactable.", "message": str(e.msg.strip())})
 
         for index, article in enumerate(articles, start=1):
             
@@ -99,7 +113,7 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
             try:
                 job_id = article.get_attribute("id")
                 job_link = article.find_element(By.XPATH, './/header/h2/a').get_attribute("href")
-                job_title = article.find_element(By.XPATH, './/header/h2/a').text
+                job_title = {"ru": article.find_element(By.XPATH, './/header/h2/a').text, "en": article.find_element(By.XPATH, './/header/h2/a').text}
                 try:
                     job_salary = article.find_element(By.XPATH, './/section//p[contains(@class, "p5Q1eF")]').text
                 except NoSuchElementException as e:
@@ -109,7 +123,7 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
                 job_tags = [job_tag.text.strip() for job_tag in job_tags_list if job_tag.text.strip() != ""] if job_tags_list else None
                 job_company = article.find_element(By.XPATH, './/section/div[2]/div/div[1]/div').text.strip()
                 captions = article.find_elements(By.XPATH, './/section//div[contains(@class, "caption")]')
-                where = captions[0].text.strip() if captions else None
+                where = {"ru": captions[0].text.strip(), "en": captions[0].text.strip()} if captions else None
                 when = captions[1].text.strip() if len(captions) > 1 else None
 
             except NoSuchElementException as e:
@@ -136,6 +150,6 @@ async def get_job_data(country: str, job: str) -> JSONResponse:
         driver.close()
               
     if not data:
-        return JSONResponse(status_code=404, content={"erorr": "No data found."})
+        return JSONResponse(status_code=404, content={"error": "No data found."})
     
     return JSONResponse(content=data)
