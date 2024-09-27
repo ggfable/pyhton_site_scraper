@@ -1,0 +1,22 @@
+services:
+  core_scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: relife/core_scraper:v1
+    container_name: core_scraper
+    mem_limit: 12g
+    cpus: 7
+    volumes:
+      - ./app:/var/www/scraper/app
+    command: "python3 __main__.py"
+    restart: always
+    ports:
+      - 9005:8123
+    networks:
+      - api_network
+
+networks:
+  api_network:
+    name: api_network
+    external: true
