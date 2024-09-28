@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: relife/core_scraper:v1
+    image: core_scraper:v1
     container_name: core_scraper
     mem_limit: 12g
     cpus: 7
